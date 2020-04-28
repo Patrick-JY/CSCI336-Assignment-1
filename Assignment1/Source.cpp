@@ -46,6 +46,12 @@ static void init() {
 	g_shaderProgramID = loadShaders("spColorVs.vert", "ColorFS.frag");
 	glGenBuffers(1, g_VBO);
 	glBindBuffer(GL_ARRAY_BUFFER,g_VBO[0]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(ground), ground, GL_STATIC_DRAW);
+
+	glGenVertexArrays(1, &g_VAO);
+	glBindVertexArray(g_VAO);
+
+
 	
 }
 
