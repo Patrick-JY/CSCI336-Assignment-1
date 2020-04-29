@@ -66,7 +66,7 @@ GLfloat tire2Vertices[(CIRCLE_SLICES + 2) * 4] = {
 
 GLfloat rimColour[(CIRCLE_SLICES + 2) * 4] = {
 	0.7098f,0.7098f,0.74f,
-	0.7098f,0.7098f,0.74f,
+	1.0f,1.0f,1.0f,
 };
 
 GLfloat rim1Vertices[(CIRCLE_SLICES + 2) * 4] = {
@@ -182,7 +182,7 @@ GLuint g_VBO[13];
 GLuint g_VAO[10];
 GLuint g_modelMatrixIndex = 0;
 GLuint g_shaderProgramID = 0;
-glm::mat4 g_modelMatrix[4];
+glm::mat4 g_modelMatrix[5];
 
 
 static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
@@ -219,7 +219,8 @@ static void init() {
 	g_modelMatrix[0] = mat4(1.0f); //handles the ground (probably not needed)
 	g_modelMatrix[1] = mat4(1.0f); //handles the truck chasis
 	g_modelMatrix[2] = mat4(1.0f); //handles the dumpbox
-	g_modelMatrix[3] = mat4(1.0f); //handles the wheels
+	g_modelMatrix[3] = mat4(1.0f); //handles wheel 1
+	g_modelMatrix[4] = mat4(1.0f); //handles wheel 2
 
 
 	
@@ -372,12 +373,15 @@ static void update_scene(GLFWwindow* window, float frameTime)
 {
 	// declare variables to transform the object
 	glm::vec3 moveVec(0.0f, 0.0f, 0.0f);
-	
+	float wheelRotateAngle = 0.0f;
+	glm::mat4 tempMat = mat4(1.0f);
 	if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS) {
 		moveVec.x -= MOVEMENT_SENSITIVITY * frameTime;
+		wheelRotateAngle += ROTATION_SENSITIVITY * frameTime;
 	}
 	if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) {
 		moveVec.x += MOVEMENT_SENSITIVITY * frameTime;
+		wheelRotateAngle -= ROTATION_SENSITIVITY * frameTime;
 	}
 
 
@@ -385,8 +389,22 @@ static void update_scene(GLFWwindow* window, float frameTime)
 	g_modelMatrix[1] *= glm::translate(moveVec);
 	//update Dump box model matrix
 	g_modelMatrix[2] *= glm::translate(moveVec);
-	//update Wheels model matrix
-	g_modelMatrix[3] *= glm::translate(moveVec);
+	//update Wheel 1 model matrix
+	tempMat = mat4(1.0f);
+	tempMat[3][0] = g_modelMatrix[1][3][0]; //x pos
+	tempMat[3][1] = g_modelMatrix[1][3][1]; //y pos
+	tempMat[3][2] = g_modelMatrix[1][3][2]; //z pos
+	g_modelMatrix[3] = tempMat * glm::rotate(wheelRotateAngle
+		,glm::vec3(0.0f,0.0f,1.0f));
+	//update Wheel 2 model matrix
+	tempMat = mat4(1.0f);
+	tempMat[3][0] = g_modelMatrix[1][3][0]; //x pos
+	tempMat[3][1] = g_modelMatrix[1][3][1]; //y pos
+	tempMat[3][2] = g_modelMatrix[1][3][2]; //z pos
+	g_modelMatrix[4]  *= glm::rotate(wheelRotateAngle
+		, glm::vec3(0.0f, 0.0f, 1.0f));
+
+
 
 }
 
@@ -440,15 +458,14 @@ static void render_scene() {
 	glBindVertexArray(g_VAO[1]);
 	glDrawArrays(GL_TRIANGLE_FAN, 0, g_slices + 2);
 
-	//Tire 2
-	glBindVertexArray(g_VAO[2]);
-	glDrawArrays(GL_TRIANGLE_FAN, 0, g_slices + 2);
-
-
 	//rim 1
 	glBindVertexArray(g_VAO[3]);
 	glDrawArrays(GL_TRIANGLE_FAN, 0, g_slices + 2);
 
+	glUniformMatrix4fv(g_modelMatrixIndex, 1, GL_FALSE, &g_modelMatrix[4][0][0]);
+	//Tire 2
+	glBindVertexArray(g_VAO[2]);
+	glDrawArrays(GL_TRIANGLE_FAN, 0, g_slices + 2);
 
 	//rim 2
 	glBindVertexArray(g_VAO[4]);
