@@ -4,12 +4,17 @@
 #include <string>
 #include <charconv>
 #include <cmath>
+#include <cstddef>
 using namespace std;
 
 #include <GLEW/glew.h>
 #include <GLFW/glfw3.h>
+#include <glm/glm.hpp>
+#include <glm/gtx/transform.hpp>
+using namespace glm;
 
 #include "shader.h"
+
 
 //global vars
 
@@ -18,6 +23,8 @@ using namespace std;
 #define TIRE_RADIUS 0.20
 #define RIM_RADIUS 0.13
 #define CIRCLE_SLICES 32
+#define MOVEMENT_SENSITIVITY 3.0f
+#define ROTATION_SENSITIVITY 3.0f
 
 
 bool fillMode = true;
@@ -85,9 +92,9 @@ GLfloat base[] = {
 };
 
 GLfloat driver_compartment[] = {
-	-0.4f,ground[1] + 0.26f,0.0f, //vertex
+	-0.4f,ground[1] + 0.25f,0.0f, //vertex
 	1.0f,0.0f,0.0f, //color
-	-0.0f,ground[1] + 0.26f,0.0f, //vertex
+	-0.0f,ground[1] + 0.25f,0.0f, //vertex
 	1.0f,0.0f,0.0f, //color
 	-0.4f,ground[1] + 0.50f,0.0f, //vertex
 	1.0f,0.0f,0.0f, //color
@@ -108,9 +115,29 @@ GLfloat driver_window[] = {
 	0.7098f,0.7098f,0.74f,
 	-0.20f,ground[1] + 0.50f,0.0f, //vertex 2
 	0.7098f,0.7098f,0.74f,
+	-0.28f,ground[1] + 0.70f,0.0f, //vertex 4
+	0.7098f,0.7098f,0.74f,
 	-0.20f,ground[1] + 0.70f,0.0f, //vertex 3
 	0.7098f,0.7098f,0.74f,
+	
 };
+
+GLfloat dump_box[] = {
+	0.1f,ground[1] + 0.25f,0.0f, //vertex 1
+	0.0f,1.0f,0.0f,
+	0.6f,ground[1] + 0.25f,0.0f, //vertex 2
+	0.0f,1.0f,0.0f,
+	-0.0f,ground[1] + 0.50f,0.0f, //vertex 4
+	0.0f,1.0f,0.0f,
+	0.70f,ground[1] + 0.50f,0.0f, //vertex 3
+	0.0f,1.0f,0.0f,
+	0.1f,ground[1] + 0.70f,0.0f, //vertex 6
+	0.0f,1.0f,0.0f,
+	0.6f,ground[1] + 0.70f,0.0f, //vertex 5
+	0.0f,1.0f,0.0f,
+};
+
+
 
 
 
@@ -151,10 +178,12 @@ void generate_circle(float centrey,float centrex,GLfloat circleVertices [],GLflo
 
 
 //end Truck Components
-GLuint g_VBO[12];
-GLuint g_VAO[9];
-
+GLuint g_VBO[13];
+GLuint g_VAO[10];
+GLuint g_modelMatrixIndex = 0;
 GLuint g_shaderProgramID = 0;
+glm::mat4 g_modelMatrix[4];
+
 
 static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
 	if (key == GLFW_KEY_W && action == GLFW_PRESS) {
@@ -184,17 +213,23 @@ static void init() {
 	g_shaderProgramID = loadShaders("spColorVs.vert", "ColorFS.frag");
 	GLuint positionIndex = glGetAttribLocation(g_shaderProgramID, "aPosition");
 	GLuint colorIndex = glGetAttribLocation(g_shaderProgramID, "aColor");
+	g_modelMatrixIndex = glGetUniformLocation(g_shaderProgramID, "uModelMatrix");
 
+	//init model matrix to the identity matrix
+	g_modelMatrix[0] = mat4(1.0f); //handles the ground (probably not needed)
+	g_modelMatrix[1] = mat4(1.0f); //handles the truck chasis
+	g_modelMatrix[2] = mat4(1.0f); //handles the dumpbox
+	g_modelMatrix[3] = mat4(1.0f); //handles the wheels
 
 
 	
 	
-	glGenBuffers(12, g_VBO);
+	glGenBuffers(13, g_VBO);
 	//ground
 	glBindBuffer(GL_ARRAY_BUFFER,g_VBO[0]);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(ground), ground, GL_STATIC_DRAW);
 
-	glGenVertexArrays(9, g_VAO);
+	glGenVertexArrays(10, g_VAO);
 
 	
 	glBindVertexArray(g_VAO[0]);
@@ -313,33 +348,109 @@ static void init() {
 	glEnableVertexAttribArray(positionIndex);
 	glEnableVertexAttribArray(colorIndex);
 
+	//DumpBox
+	glBindBuffer(GL_ARRAY_BUFFER, g_VBO[12]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(dump_box), dump_box, GL_STATIC_DRAW);
+
+	glBindVertexArray(g_VAO[8]);
+	glBindBuffer(GL_ARRAY_BUFFER, g_VBO[12]);
+
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE,
+		sizeof(Vertex), reinterpret_cast<void*>(offsetof(Vertex, position)));
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<void*>(offsetof(Vertex, color)));
+
+	glEnableVertexAttribArray(positionIndex);
+	glEnableVertexAttribArray(colorIndex);
+
 
 
 	
 }
 
+
+static void update_scene(GLFWwindow* window, float frameTime) 
+{
+	// declare variables to transform the object
+	glm::vec3 moveVec(0.0f, 0.0f, 0.0f);
+	
+	if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS) {
+		moveVec.x -= MOVEMENT_SENSITIVITY * frameTime;
+	}
+	if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) {
+		moveVec.x += MOVEMENT_SENSITIVITY * frameTime;
+	}
+
+
+	//update model matrix for chasis
+	g_modelMatrix[1] *= glm::translate(moveVec);
+	//update Dump box model matrix
+	g_modelMatrix[2] *= glm::translate(moveVec);
+	//update Wheels model matrix
+	g_modelMatrix[3] *= glm::translate(moveVec);
+
+}
+
+
+
+
+
+
+
+
+
+
 static void render_scene() {
 	glClear(GL_COLOR_BUFFER_BIT);
 
 	glUseProgram(g_shaderProgramID);
+	
+	glUniformMatrix4fv(g_modelMatrixIndex, 1, GL_FALSE, &g_modelMatrix[0][0][0]);
+	//ground
 	glBindVertexArray(g_VAO[0]);
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
+	glUniformMatrix4fv(g_modelMatrixIndex, 1, GL_FALSE, &g_modelMatrix[1][0][0]);
+	//base
 	glBindVertexArray(g_VAO[5]);
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
+
+	
+	//truck compartment
 	glBindVertexArray(g_VAO[6]);
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, 6);
 
+	
+	//truck window
+	glBindVertexArray(g_VAO[7]);
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+	//solution for a model with moving parts is to have the tire/dump matrices
+	//behave similarly to truck one, might be wrong but can't figure out the proper way
+	//this is what is done in the orbit demo code
+	
+	glUniformMatrix4fv(g_modelMatrixIndex, 1, GL_FALSE, &g_modelMatrix[2][0][0]);
+	//dump box
+	glBindVertexArray(g_VAO[8]);
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 6);
+
+
+	glUniformMatrix4fv(g_modelMatrixIndex, 1, GL_FALSE, &g_modelMatrix[3][0][0]);
+	//Tire 1
 	glBindVertexArray(g_VAO[1]);
 	glDrawArrays(GL_TRIANGLE_FAN, 0, g_slices + 2);
 
+	//Tire 2
 	glBindVertexArray(g_VAO[2]);
 	glDrawArrays(GL_TRIANGLE_FAN, 0, g_slices + 2);
 
+
+	//rim 1
 	glBindVertexArray(g_VAO[3]);
 	glDrawArrays(GL_TRIANGLE_FAN, 0, g_slices + 2);
 
+
+	//rim 2
 	glBindVertexArray(g_VAO[4]);
 	glDrawArrays(GL_TRIANGLE_FAN, 0, g_slices + 2);
 
@@ -381,22 +492,43 @@ int main(void) {
 	}
 
 	glfwSetKeyCallback(window, key_callback);
+	glfwSetInputMode(window, GLFW_STICKY_KEYS, GL_TRUE);
 	glfwSetMouseButtonCallback(window, mouse_button_callback);
 	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
 	init();
 
+	//taken from tuts
+	double lastUpdateTime = glfwGetTime();	// last update time
+	double elapsedTime = lastUpdateTime;	// time elapsed since last update
+	float frameTime = 0.0f;				// frame time
+	int frameCount = 0;						// number of frames since last update
+
 
 	while (!glfwWindowShouldClose(window)) {
-		render_scene();
+		update_scene(window, frameTime);		// update the scene
+		render_scene();				// render the scene
 
-		glfwSwapBuffers(window);
-		glfwPollEvents();
+		glfwSwapBuffers(window);	// swap buffers
+		glfwPollEvents();			// poll for events
+
+		frameCount++;
+		elapsedTime = glfwGetTime() - lastUpdateTime;	// current time - last update time
+		if (elapsedTime >= 1.0f)	// if time since last update >= to 1 second
+		{
+			frameTime = static_cast<float>(1.0f / frameCount);	// calculate frame time
+
+			
+
+			frameCount = 0;					// reset frame count
+			lastUpdateTime += elapsedTime;	// update last update time
+		}
+	
 	}
 
 	glDeleteProgram(g_shaderProgramID);
-	glDeleteBuffers(5, g_VBO);
-	glDeleteVertexArrays(2, g_VAO);
+	glDeleteBuffers(10, g_VBO);
+	glDeleteVertexArrays(12, g_VAO);
 
 	glfwDestroyWindow(window);
 	glfwTerminate();
