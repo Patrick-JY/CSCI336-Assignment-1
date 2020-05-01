@@ -68,8 +68,10 @@ GLfloat tireColour[(CIRCLE_SLICES + 2) * 4] = {
 };
 
 GLfloat tire2Vertices[(CIRCLE_SLICES + 2) * 4] = {
-	0.4f, ground[1] + TIRE_RADIUS, 0.0f,// vertex 1
-	TIRE_RADIUS * scale_factor + 0.4f, ground[1] + TIRE_RADIUS, 0.0f, //vertex 2
+	0.0f,0.0f,0.0f,
+	0.0f,0.0f,0.0f,
+	//0.4f, ground[1] + TIRE_RADIUS, 0.0f,// vertex 1
+	//TIRE_RADIUS * scale_factor + 0.4f, ground[1] + TIRE_RADIUS, 0.0f, //vertex 2
 };
 
 GLfloat rimColour[(CIRCLE_SLICES + 2) * 4] = {
@@ -85,8 +87,10 @@ GLfloat rim1Vertices[(CIRCLE_SLICES + 2) * 4] = {
 };
 
 GLfloat rim2Vertices[(CIRCLE_SLICES + 2) * 4] = {
-	0.4f, ground[1] + RIM_RADIUS + 0.07f, 0.0f,// vertex 1
-	RIM_RADIUS * scale_factor + 0.4f, ground[1] + RIM_RADIUS + 0.07f, 0.0f, //vertex 2
+	0.0f,0.0f,0.0f,
+	0.0f,0.0f,0.0f,
+	//0.4f, ground[1] + RIM_RADIUS + 0.07f, 0.0f,// vertex 1
+	//RIM_RADIUS * scale_factor + 0.4f, ground[1] + RIM_RADIUS + 0.07f, 0.0f, //vertex 2
 };
 
 GLfloat base[] = {
@@ -133,7 +137,21 @@ GLfloat driver_window[] = {
 };
 
 GLfloat dump_box[] = {
-	0.1f,ground[1] + 0.25f,0.0f, //vertex 1
+	-0.5f,0.0f,0.0f, // vertex 1
+	0.0f,1.0f,0.0f,
+	0.0f,0.0f,0.0f, // vertex 2 pivot point
+	0.0f,1.0f,0.0f,
+	-0.6f,0.25f,0.0f, //vertex 4 (the numbering is for legacy purposes sorry)
+	0.0f,1.0f,0.0f,
+	0.1f,0.25f,0.0f, //vertex 3
+	0.0f,1.0f,0.0f,
+	-0.5f,0.45f,0.0f, // vertex 6
+	0.0f,1.0f,0.0f,
+	0.0f,0.45f,0.0f, // vertex 5
+	0.0f,1.0f,0.0f,
+
+
+	/*0.1f,ground[1] + 0.25f,0.0f, //vertex 1
 	0.0f,1.0f,0.0f,
 	0.6f,ground[1] + 0.25f,0.0f, //vertex 2
 	0.0f,1.0f,0.0f,
@@ -144,7 +162,7 @@ GLfloat dump_box[] = {
 	0.1f,ground[1] + 0.70f,0.0f, //vertex 6
 	0.0f,1.0f,0.0f,
 	0.6f,ground[1] + 0.70f,0.0f, //vertex 5
-	0.0f,1.0f,0.0f,
+	0.0f,1.0f,0.0f,*/
 };
 
 
@@ -193,6 +211,7 @@ GLuint g_VAO[10];
 GLuint g_modelMatrixIndex = 0;
 GLuint g_shaderProgramID = 0;
 glm::mat4 g_modelMatrix[5];
+static float dumpboxAngle = 0.0f;
 
 
 static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
@@ -383,12 +402,15 @@ static void init() {
 
 static void update_scene(GLFWwindow* window, float frameTime) 
 {
+	
 	// declare variables to transform the object
 	 glm::vec3 moveVec(0.0f, 0.0f, 0.0f);
 	 glm::vec3 tire1Loc(-0.2f, ground[1] + TIRE_RADIUS, 0.0f);
+	 glm::vec3 tire2Loc(0.4f, ground[1] + TIRE_RADIUS, 0.0f);
+	 glm::vec3 dumpBoxLoc(0.6f, ground[1] + 0.25f, 0.0f);
 	static float wheelRotateAngle = 0.0f;
-	float dumpboxAngle = 0.0f;
-	static float fixeddumpboxAngle = 0.0f;
+	
+	
 	
 	glm::mat4 tempMat = mat4(1.0f);
 	glm::mat4 tempMat2 = mat4(1.0f);
@@ -401,8 +423,19 @@ static void update_scene(GLFWwindow* window, float frameTime)
 		wheelRotateAngle -= ROTATION_SENSITIVITY * frameTime;
 	}
 	if (glfwGetKey(window, GLFW_KEY_I) == GLFW_PRESS) {
-		if (fixeddumpboxAngle < MAX_DUMP_ANGLE) {
+		if (dumpboxAngle < MAX_DUMP_ANGLE) {
 			dumpboxAngle += ROTATION_SENSITIVITY * frameTime;
+		}
+		else if (dumpboxAngle > MAX_DUMP_ANGLE) {
+			dumpboxAngle = MAX_DUMP_ANGLE;
+		}
+	}
+	if (glfwGetKey(window, GLFW_KEY_J) == GLFW_PRESS) {
+		if (dumpboxAngle > 0) {
+			dumpboxAngle -= ROTATION_SENSITIVITY * frameTime;
+		}
+		else if (dumpboxAngle < 0) {
+			dumpboxAngle = 0;
 		}
 	}
 
@@ -412,8 +445,15 @@ static void update_scene(GLFWwindow* window, float frameTime)
 	
 	
 	//update Dump box model matrix
-	
-	g_modelMatrix[2] *= glm::translate(moveVec) * glm::rotate(dumpboxAngle, vec3(0.0, 0.0, 1.0));
+	tempMat = mat4(1.0f);
+	tempMat[3][0] = g_modelMatrix[0][3][0];
+	tempMat[3][1] = g_modelMatrix[0][3][1];
+	tempMat[3][2] = g_modelMatrix[0][3][2];
+	tempMat2 = mat4(1.0f);
+	tempMat2[3][0] = g_modelMatrix[1][3][0];
+	tempMat2[3][1] = g_modelMatrix[1][3][1];
+	tempMat2[3][2] = g_modelMatrix[1][3][2];
+	g_modelMatrix[2] = tempMat * tempMat2 * glm::translate(dumpBoxLoc)  * glm::rotate(dumpboxAngle, vec3(0.0, 0.0, -1.0));
 	
 	
 	
@@ -431,8 +471,15 @@ static void update_scene(GLFWwindow* window, float frameTime)
 
 
 	//update Wheel 2 model Matrix
-
-	g_modelMatrix[4] *= glm::translate(moveVec);
+	tempMat = mat4(1.0f);
+	tempMat[3][0] = g_modelMatrix[0][3][0];
+	tempMat[3][1] = g_modelMatrix[0][3][1];
+	tempMat[3][2] = g_modelMatrix[0][3][2];
+	tempMat2 = mat4(1.0f);
+	tempMat2[3][0] = g_modelMatrix[1][3][0];
+	tempMat2[3][1] = g_modelMatrix[1][3][1];
+	tempMat2[3][2] = g_modelMatrix[1][3][2];
+	g_modelMatrix[4] = tempMat * tempMat2 * glm::translate(tire2Loc) * glm::rotate(wheelRotateAngle, vec3(0.0f, 0.0f, 1.0f));
 	
 	
 
@@ -535,7 +582,7 @@ int main(void) {
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-	window = glfwCreateWindow(1024, 768, "Assignment 1 5402669", NULL, NULL);
+	window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Assignment 1 5402669", NULL, NULL);
 
 	if (window == NULL) {
 		glfwTerminate();
@@ -575,12 +622,20 @@ int main(void) {
 	TwAddVarRO(TweakBar, "FPS", TW_TYPE_INT32, &FPS, " group='Frame' ");
 	TwAddVarRO(TweakBar, "Frame Time", TW_TYPE_DOUBLE, &frameTime, " group='Frame' precision=4 ");
 
+	
+
 	// make the frame group a sub category of the display group
 	TwDefine("Main/Frame group = 'Display'");
+	
 
 	//display a separator
 	TwAddSeparator(TweakBar, NULL, NULL);
-
+	//create Model entries
+	TwAddVarRW(TweakBar, "dumpboxAngle", TW_TYPE_FLOAT, &dumpboxAngle, " group = 'Model'");
+	TwDefine(" Main/dumpboxAngle  min=0 max=0.785398f ");
+	TwDefine(" Main/dumpboxAngle  step=0.05 ");
+	TwDefine("Main/Model group = 'Display'");
+	
 	init();
 
 	
