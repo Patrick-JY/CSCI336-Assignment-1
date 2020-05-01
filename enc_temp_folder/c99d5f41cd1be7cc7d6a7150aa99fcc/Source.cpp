@@ -274,7 +274,7 @@ static void init() {
 	glEnableVertexAttribArray(1);
 
 	//tire2
-	generate_circle(/*ground[1] + TIRE_RADIUS, 0.4f, */0.0f,0.0f,tire2Vertices, tireColour,TIRE_RADIUS);
+	generate_circle(ground[1] + TIRE_RADIUS, 0.4f, tire2Vertices, tireColour,TIRE_RADIUS);
 	glBindBuffer(GL_ARRAY_BUFFER, g_VBO[3]);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 3 * (g_slices + 2), tire2Vertices, GL_DYNAMIC_DRAW);
 	glBindBuffer(GL_ARRAY_BUFFER, g_VBO[4]);
@@ -304,7 +304,7 @@ static void init() {
 
 
 	//rim2
-	generate_circle(/*ground[1] + RIM_RADIUS + 0.07f, 0.4f,*/0.0f,0.0f, rim2Vertices, rimColour,RIM_RADIUS);
+	generate_circle(ground[1] + RIM_RADIUS + 0.07f, 0.4f, rim2Vertices, rimColour,RIM_RADIUS);
 	glBindBuffer(GL_ARRAY_BUFFER, g_VBO[7]);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 3 * (g_slices + 2), rim2Vertices, GL_DYNAMIC_DRAW);
 	glBindBuffer(GL_ARRAY_BUFFER, g_VBO[8]);
